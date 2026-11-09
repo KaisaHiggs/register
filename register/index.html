@@ -1,0 +1,170 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>フランクフルト POSレジ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-header">
+  <h1>フランクフルト売店 POS</h1>
+  <button class="nav-tab active" id="tabPosBtn" onclick="switchTab('pos')">🛒 レジ会計</button>
+  <button class="nav-tab" id="tabLogBtn" onclick="switchTab('log')">📋 販売ログ・集計 (<span id="logBadge">0</span>)</button>
+</div>
+
+<div class="container">
+  
+  <!-- ==================== TAB 1: POS メイン画面 ==================== -->
+  <div id="posView">
+    <div class="stepper">
+      <div class="step-badge active" id="stepBadge1">1. 味選択</div>
+      <span class="step-arrow">➔</span>
+      <div class="step-badge" id="stepBadge2">2. 料金・お支払い</div>
+      <span class="step-arrow">➔</span>
+      <div class="step-badge" id="stepBadge3">3. 決済完了</div>
+    </div>
+
+    <!-- STEP 1: 味を選択・決定 -->
+    <div class="card step-pane active" id="stepPane1">
+      <h2>STEP 1: 味を選択してください (1本 300円)</h2>
+      <div class="menu-grid" id="menuGrid"></div>
+      
+      <div class="current-cart-box">
+        <h3>現在の選択内容</h3>
+        <ul class="cart-summary-list" id="step1CartList">
+          <li style="color:#999; text-align:center;">商品を選択してください</li>
+        </ul>
+        <div style="text-align: right; font-weight: bold; font-size: 1.2rem; margin-top: 10px;">
+          合計: <span style="color:#e65100;">¥<span id="step1Total">0</span></span> (<span id="step1Count">0</span>本)
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-secondary" onclick="resetCart()">クリア</button>
+        <button class="btn btn-primary" id="btnToStep2" onclick="goToStep(2)" disabled>料金・決済へ進む ➔</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: 料金を表示・決済 -->
+    <div class="card step-pane" id="stepPane2">
+      <h2>STEP 2: お支払い手続き</h2>
+      
+      <div class="checkout-detail">
+        <div style="font-weight: bold; margin-bottom: 8px;">注文明細:</div>
+        <div id="step2CartDetail" style="margin-bottom: 15px;"></div>
+        
+        <div class="summary-line highlight">
+          <span>ご請求金額</span>
+          <span>¥<span id="step2Total">0</span></span>
+        </div>
+      </div>
+
+      <div class="payment-box">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">お預かり金額</label>
+        <input type="number" id="paidAmount" class="paid-input" placeholder="0" step="100" oninput="calculateChange()">
+        <div class="quick-btns">
+          <button class="btn-q" onclick="setPaid(300)">300円</button>
+          <button class="btn-q" onclick="setPaid(500)">500円</button>
+          <button class="btn-q" onclick="setPaid(600)">600円</button>
+          <button class="btn-q" onclick="setPaid(1000)">1,000円</button>
+          <button class="btn-q" onclick="setPaid(2000)">2,000円</button>
+          <button class="btn-q" onclick="setPaid(5000)">5,000円</button>
+        </div>
+
+        <div class="summary-line change-line">
+          <span>お釣り</span>
+          <span>¥<span id="changeDisplay">0</span></span>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">⬅ 味選択に戻る</button>
+        <button class="btn btn-success" id="btnComplete" onclick="completePayment()" disabled>決済を確定する</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: 決済済み画面を表示 -->
+    <div class="card step-pane" id="stepPane3">
+      <div class="success-screen">
+        <div class="success-icon">✓</div>
+        <h2 style="border:none; margin:0; color:#2e7d32;">決済完了</h2>
+        <p style="color:#666; margin-top:5px;">お買い上げありがとうございました！</p>
+
+        <div class="receipt-box">
+          <div style="font-size: 0.85rem; color: #888; margin-bottom: 8px;" id="receiptTime"></div>
+          <div id="receiptItems"></div>
+          <hr style="border:none; border-top:1px dashed #ccc; margin:10px 0;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold;">
+            <span>合計</span>
+            <span>¥<span id="receiptTotal">0</span></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; color:#555; font-size:0.9rem; margin-top:4px;">
+            <span>お預かり</span>
+            <span>¥<span id="receiptPaid">0</span></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; color:#1565c0; font-weight:bold; margin-top:4px;">
+            <span>お釣り</span>
+            <span>¥<span id="receiptChange">0</span></span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-block" style="font-size:1.2rem; padding:15px;" onclick="startNewOrder()">
+          🔄 次の注文へ (最初に戻る)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TAB 2: 販売ログ & 集計・修正画面 ==================== -->
+  <div id="logView" style="display: none;">
+    <div class="card">
+      <h2>📊 売上集計 (自動計算)</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div style="text-align: right; font-weight: bold; font-size: 1.2rem; color: #d84315;">
+        累計本数: <span id="grandTotalCount">0</span> 本 / 累計売上: ¥<span id="grandTotalAmount">0</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 15px;">
+      <h2>📜 取引履歴ログ (個別修正・削除可能)</h2>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>時刻</th>
+              <th>購入内容</th>
+              <th>本数</th>
+              <th>金額</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ログ修正モーダル -->
+<div class="modal-backdrop" id="editModal">
+  <div class="modal-card">
+    <h3>取引ログの修正 (ID: #<span id="editLogId"></span>)</h3>
+    <p style="font-size:0.85rem; color:#666; margin-bottom:12px;">各味の数量を変更してください（0本で除外）。</p>
+    
+    <div id="editItemsContainer"></div>
+
+    <div class="action-row" style="margin-top: 15px;">
+      <button class="btn btn-secondary" onclick="closeEditModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveLogEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
